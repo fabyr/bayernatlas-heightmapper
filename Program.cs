@@ -24,7 +24,7 @@ namespace BayernatlasHeightmapper
         {
             async Task PrintHelp()
             {
-                string programName = args.Length > 0 ? args[0] : "bayernatlas-heightmapper";
+                const string programName = "bayernatlas-heightmapper";
                 await Console.Out.WriteLineAsync($"Usage: {programName} [-h] [-S] [-r] [-u <units>] [-s <size>] centerX centerY [outputFile]");
                 await Console.Out.WriteLineAsync();
                 await Console.Out.WriteLineAsync("Download heightmap images or heightmap values from Bayernatlas.");
