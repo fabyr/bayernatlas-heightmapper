@@ -355,12 +355,11 @@ namespace BayernatlasHeightmapper
             if(onlySaveRaw)
             {
                 StringBuilder raw = new StringBuilder();
-                for(int x = 0; x < heights.GetLength(0); x++)
+                for(int y = heights.GetLength(1) - 1; y >= 0; y--)
                 {
-                    int initialY = heights.GetLength(1) - 1;
-                    for(int y = initialY; y >= 0; y--)
+                    for(int x = 0; x < heights.GetLength(0); x++)
                     {
-                        if(y != initialY)
+                        if(x != 0)
                             raw.Append(" ");
                         raw.Append(heights[x, y]);
                     }
