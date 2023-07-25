@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/BayernatlasHeightmapper.csproj",
+                "${workspaceFolder}/bayernatlas-heightmapper.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/BayernatlasHeightmapper.csproj",
+                "${workspaceFolder}/bayernatlas-heightmapper.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/BayernatlasHeightmapper.csproj"
+                "${workspaceFolder}/bayernatlas-heightmapper.csproj"
             ],
             "problemMatcher": "$msCompile"
         }
