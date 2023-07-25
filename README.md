@@ -2,6 +2,14 @@
 
 A small tool to download heightmap-images from [Geoportal Bayern's Bayernatlas](https://geoportal.bayern.de/bayernatlas/)
 
+## Table of Contents
+- [Dependencies](#dependencies)
+- [Usage](#usage)
+  - [Example download](#example-download)
+  - [More examples](#more-examples)
+- [Image pixel values](#image-pixel-values)
+- [Raw mode](#raw-mode)
+
 ## Dependencies
 - [.NET 6 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 
@@ -28,7 +36,7 @@ outputFile:
         When not using '-r' or '--raw', this must be set.
 ```
 
-### Download example
+### Example download
 1. Get the GK4 coordinates of a place, simply right click on a location on the website:
 ![screenshot of the website](/assets/on-website.png)
   - The fourth row contains the required coordinates.
@@ -54,7 +62,7 @@ By default, a `5000x5000` meter region will be captured.
 `dotnet run 4481536 5422592 heightmap3.png --units 200 --size 130000,180000`
 ![result of the above command](/assets/heightmap3.png)
 
-### Output image pixel values
+## Image pixel values
 At the end of each download you will see a summary of some parameters:
 ```
 Final Parameters:
@@ -69,6 +77,6 @@ Units per pixel: 30
 
 Important are the `Minimum Height` and `Maximum Height` values, as they directly depict a pixel value of `0` and `255` respectively. In-between values are interpolated linearly.
 
-### Raw mode
+## Raw mode
 By using the argument `--raw`, instead of rendering an image, the raw height-values in `meters` will be saved.
 It is a simple collection of space-separated values, where each line contains the "pixels" of the image row-by-row.
