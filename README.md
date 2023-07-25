@@ -41,8 +41,10 @@ outputFile:
 ![screenshot of the website](/assets/on-website.png)
   - The fourth row contains the required coordinates.
 
-2. Then, simply download a heightmap using the following command: \
-`dotnet run 4466640 5418104 heightmap.png`
+2. Then, simply download a heightmap using the following command:
+```
+dotnet run 4466640 5418104 heightmap.png
+```
 ![result of the above command](/assets/heightmap.png)
 
 
@@ -56,10 +58,14 @@ of `10000x8000` meters for example, etc.
 By default, a `5000x5000` meter region will be captured.
 
 ### More examples
-`dotnet run 4511300 5378491 heightmap2.png --units 30 --size 10000,8000`
+```
+dotnet run 4511300 5378491 heightmap2.png --units 30 --size 10000,8000
+```
 ![result of the above command](/assets/heightmap2.png)
 
-`dotnet run 4481536 5422592 heightmap3.png --units 200 --size 130000,180000`
+```
+dotnet run 4481536 5422592 heightmap3.png --units 200 --size 130000,180000
+```
 ![result of the above command](/assets/heightmap3.png)
 
 ## Image pixel values
