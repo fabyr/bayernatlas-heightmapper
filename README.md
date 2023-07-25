@@ -33,7 +33,7 @@ outputFile:
 ![screenshot of the website](/assets/on-website.png)
   - The fourth row contains the required coordinates.
 
-2. Then, simply download a heightmap using the following command:
+2. Then, simply download a heightmap using the following command: \
 `dotnet run 4466640 5418104 heightmap.png`
 ![result of the above command](/assets/heightmap.png)
 
