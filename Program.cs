@@ -368,7 +368,7 @@ namespace BayernatlasHeightmapper
                 if(outputFile == null) // Write to stdout if no output file is set
                     await Console.Out.WriteLineAsync(raw.ToString());
                 else
-                    File.WriteAllText(outputFile, raw.ToString());
+                    await File.WriteAllTextAsync(outputFile, raw.ToString());
             }
             else // Save image
             {
