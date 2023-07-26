@@ -51,7 +51,7 @@ dotnet run 4466640 5418104 heightmap.png
 By default, a pixel will represent an area of `20x20` meters.
 This can be changed by using `--units 100`, to change it to `100x100` meters for example, etc.
 The lower the value, the higher the resolution, but the longer the image will take to download.
-The resolution is also limited by the server. `--units 20` is approximately the minimal resolution.
+The resolution is also limited by the server. `--units 20` is approximately the minimal value.
 
 The physical size the image is covering can be changed by using `--size`. To capture an area
 of `10000x8000` meters for example, you would have to use `--size 5000x4000`, as it specifies how far the region extends into each direction
