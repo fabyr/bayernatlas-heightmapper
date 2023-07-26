@@ -53,9 +53,10 @@ This can be changed by using `--units 100`, to change it to `100x100` meters for
 The lower the value, the higher the resolution, but the longer the image will take to download.
 The resolution is also limited by the server. `--units 20` is approximately the minimal resolution.
 
-The physical size the image is covering can be changed by using `--size 10000,8000`, to capture an area
-of `10000x8000` meters for example, etc.
-By default, a `5000x5000` meter region will be captured.
+The physical size the image is covering can be changed by using `--size`. To capture an area
+of `10000x8000` meters for example, you would have to use `--size 5000x4000`, as it specifies how far the region extends into each direction
+from the center. I.e. 5000m north, 5000m south and 4000m west, 4000m east. So the resulting area will always be double that of `size`.
+By default, size is set to `5000,5000`.
 
 ### More examples
 ```
