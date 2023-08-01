@@ -4,6 +4,7 @@ using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 
 namespace BayernatlasHeightmapper
@@ -13,6 +14,15 @@ namespace BayernatlasHeightmapper
         private static float Lerp(float firstFloat, float secondFloat, float by)
         {
             return firstFloat * (1 - by) + secondFloat * by;
+        }
+
+        private static Rgb24 LerpRgb24(Rgb24 a, Rgb24 b, float by)
+        {
+            return new Rgb24(
+                (byte)(int)Lerp(a.R, b.R, by),
+                (byte)(int)Lerp(a.G, b.G, by),
+                (byte)(int)Lerp(a.B, b.B, by)
+            );
         }
 
         private static float Map(float x, float in_min, float in_max, float out_min, float out_max)
@@ -25,20 +35,29 @@ namespace BayernatlasHeightmapper
             async Task PrintHelp()
             {
                 const string programName = "bayernatlas-heightmapper";
-                await Console.Out.WriteLineAsync($"Usage: {programName} [-h] [-S] [-r] [-u <units>] [-s <size>] centerX centerY [outputFile]");
+                await Console.Out.WriteLineAsync($"Usage: {programName} [-h] [-S] [-r] [-u <units>] [-s <size>] [-t <step>] centerX centerY [outputFile]");
                 await Console.Out.WriteLineAsync();
                 await Console.Out.WriteLineAsync("Download heightmap images or heightmap values from Bayernatlas.");
                 await Console.Out.WriteLineAsync();
                 await Console.Out.WriteLineAsync("Options:");
-                await Console.Out.WriteLineAsync(" -h, --help\tdisplay this help");
-                await Console.Out.WriteLineAsync(" -u, --units\tunits per pixel (meters). Default is 20");
-                await Console.Out.WriteLineAsync(" -S, --simple\tuse a simplified downloading algorithm (not necessary in most cases)");
+                await Console.Out.WriteLineAsync(" -h, --help\tDisplay this help");
+                await Console.Out.WriteLineAsync(" -u, --units\tUnits per pixel (meters). Default is 20");
+                await Console.Out.WriteLineAsync(" -S, --simple\tUse a simplified downloading algorithm (not necessary in most cases)");
                 await Console.Out.WriteLineAsync();
-                await Console.Out.WriteLineAsync(" -s <size>,\tspecify size (two-value tuple) in GK4 units in each direction from the center.");
+                await Console.Out.WriteLineAsync(" -s <size>,\tSpecify size (two-value tuple) in GK4 units in each direction from the center.");
                 await Console.Out.WriteLineAsync(" --size <size>\tExample: 12000,12000");
                 await Console.Out.WriteLineAsync("\t\tDefault: 5000,5000");
                 await Console.Out.WriteLineAsync();
-                await Console.Out.WriteLineAsync(" -r, --raw\tdon't render an image; output raw numeric height values instead");
+                await Console.Out.WriteLineAsync(" -x <by>,\tScale the resulting image by that factor");
+                await Console.Out.WriteLineAsync(" --scale <by>\tExample: 5");
+                await Console.Out.WriteLineAsync("\t\tDefault: 1");
+                await Console.Out.WriteLineAsync();
+                await Console.Out.WriteLineAsync(" -r, --raw\tDon't render an image; output raw numeric height values instead");
+                await Console.Out.WriteLineAsync();
+                await Console.Out.WriteLineAsync(" -t <step>,\tInstead of saving the image as a heightmap, draw a simplified topographical map");
+                await Console.Out.WriteLineAsync(" --topo <step>\tThe lines will be separated by 'step' meters of height.");
+                await Console.Out.WriteLineAsync("\t\tExample: 22.5");
+                await Console.Out.WriteLineAsync("\t\tDefault: 10");
                 await Console.Out.WriteLineAsync();
                 await Console.Out.WriteLineAsync("outputFile:");
                 await Console.Out.WriteLineAsync("\tWrite the output to a file.");
@@ -55,6 +74,9 @@ namespace BayernatlasHeightmapper
             const string url = "https://geoportal.bayern.de/ba-backend/dgm/profile/";
 
             bool onlySaveRaw = false;
+            bool topographical = false;
+            float topographicalLineDistance = 10.0f;
+            float imageScale = 1f;
             bool requestComplex = true;
 
             // GK4
@@ -92,6 +114,23 @@ namespace BayernatlasHeightmapper
                             case "raw" or "r":
                                 onlySaveRaw = true;
                                 break;
+                            case "topo" or "t":
+                                if(i == args.Length - 1)
+                                {
+                                    await Console.Out.WriteLineAsync("'topo' requires a value afterwards. Example: --topo 15");
+                                    return;
+                                }
+                                else
+                                {
+                                    string topoArg = args[++i];
+                                    if(!float.TryParse(topoArg, out topographicalLineDistance))
+                                    {
+                                        await Console.Out.WriteLineAsync($"Invalid value '{topoArg}'. Valid Example: 15");
+                                        return;
+                                    }
+                                    topographical = true;
+                                }
+                                break;
                             case "size" or "s":
                                 if(i == args.Length - 1)
                                 {
@@ -122,6 +161,22 @@ namespace BayernatlasHeightmapper
                                     if(!int.TryParse(unitsArg, out step))
                                     {
                                         await Console.Out.WriteLineAsync($"Invalid units value '{unitsArg}'. It must be a whole number.");
+                                        return;
+                                    }
+                                }
+                                break;
+                            case "scale" or "x":
+                                if(i == args.Length - 1)
+                                {
+                                    await Console.Out.WriteLineAsync("'scale' requires a scaling-value afterwards. Example: --scale 5");
+                                    return;
+                                }
+                                else
+                                {
+                                    string scaleArg = args[++i];
+                                    if(!float.TryParse(scaleArg, out imageScale))
+                                    {
+                                        await Console.Out.WriteLineAsync($"Invalid scale value '{scaleArg}'. Valid Example: 5");
                                         return;
                                     }
                                 }
@@ -167,6 +222,12 @@ namespace BayernatlasHeightmapper
                 return;
             }
 
+            if(onlySaveRaw && topographical)
+            {
+                await Console.Out.WriteLineAsync("Raw mode is incompatible with topographical mode.");
+                return;
+            }
+
             if(!onlySaveRaw && outputFile == null)
             {
                 await Console.Out.WriteLineAsync("You must specify an output file at the end when not using '-r' or '--raw'.");
@@ -175,9 +236,10 @@ namespace BayernatlasHeightmapper
 
             await Console.Out.WriteLineAsync($"Using {(requestComplex ? "complex" : "simple")} request algorithm");
             await Console.Out.WriteLineAsync($"Output will be saved to {outputFile ?? "stdout"}");
-            await Console.Out.WriteLineAsync($"Output is {(onlySaveRaw ? "a list of raw height values": "an image")}");
+            await Console.Out.WriteLineAsync($"Output is {(onlySaveRaw ? "a list of raw height values" : topographical ? $"a topographical map with steps of {topographicalLineDistance}" : "an image")}");
             await Console.Out.WriteLineAsync($"Size: {sizeX}, {sizeY}");
-            await Console.Out.WriteLineAsync($"Units per pixel: {step}");
+            await Console.Out.WriteLineAsync($"Additional scaling afterwards: {imageScale}");
+            await Console.Out.WriteLineAsync($"Units per height-point: {step}");
             await Console.Out.WriteLineAsync();
             
             int w = (sizeX * 2) / step, h = (sizeY * 2) / step;
@@ -349,8 +411,10 @@ namespace BayernatlasHeightmapper
             await Console.Out.WriteLineAsync($"Size-Y: {sizeY}");
             await Console.Out.WriteLineAsync($"Center-X: {centerX}");
             await Console.Out.WriteLineAsync($"Center-Y: {centerY}");
-            await Console.Out.WriteLineAsync($"Units per pixel: {step}");
+            await Console.Out.WriteLineAsync($"Units per pixel: {step / imageScale}");
+            await Console.Out.WriteLineAsync($"Final image size: {(int)(w * imageScale)}x{(int)(h * imageScale)} pixels");
             await Console.Out.WriteLineAsync();
+            await Console.Out.WriteLineAsync($"Saving...");
 
             if(onlySaveRaw)
             {
@@ -370,6 +434,85 @@ namespace BayernatlasHeightmapper
                 else
                     File.WriteAllText(outputFile, raw.ToString());
             }
+            else if(topographical)
+            {
+                float[,] heightsScaled = new float[(int)(heights.GetLength(0) * imageScale), (int)(heights.GetLength(1) * imageScale)];
+                for(int x = 0; x < heightsScaled.GetLength(0); x++)
+                    for(int y = 0; y < heightsScaled.GetLength(1); y++)
+                    {
+                        float fX = x / imageScale;
+                        float fY = y / imageScale;
+                        int iX = (int)MathF.Min((int)fX, heights.GetLength(0) - 2);
+                        int iY = (int)MathF.Min((int)fY, heights.GetLength(1) - 2);
+                        float fracX = fX - iX;
+                        float fracY = fY - iY;
+                        // bilinear interpolation
+                        float interpolatedValue = (1 - fracX) * 
+                                                ((1 - fracY) * heights[iX, iY] + 
+                                                fracY * heights[iX, iY + 1]) + 
+                                            fracX * 
+                                                ((1 - fracY) * heights[iX + 1, iY] + 
+                                                fracY * heights[iX + 1, iY + 1]);
+                        heightsScaled[x, y] = interpolatedValue;
+                    }
+                w = heightsScaled.GetLength(0);
+                h = heightsScaled.GetLength(1);
+
+                // mapping of height to color
+                Tuple<float, Rgb24>[] colorMap = new Tuple<float, Rgb24>[]
+                {
+                    Tuple.Create(-1000f, new Rgb24(0, 0, 0)),
+                    Tuple.Create(0f, new Rgb24(120, 170, 255)),
+                    Tuple.Create(200f, new Rgb24(240, 255, 200)),
+                    Tuple.Create(350f, new Rgb24(170, 255, 120)),
+                    Tuple.Create(450f, new Rgb24(170, 200, 50)),
+                    Tuple.Create(600f, new Rgb24(140, 160, 50)),
+                    Tuple.Create(1000f, new Rgb24(255, 200, 120)),
+                    Tuple.Create(2000f, new Rgb24(255, 240, 200)),
+                    Tuple.Create(10000f, new Rgb24(255, 255, 255)),
+                };
+                Rgb24 lineColor = new Rgb24(0, 0, 0);
+                using(var bmp = new Image<Rgb24>(w, h))
+                {
+                    for(int x = 0; x < heightsScaled.GetLength(0) - 1; x++)
+                        for(int y = 0; y < heightsScaled.GetLength(1) - 1; y++)
+                        {
+                            float heightA = heightsScaled[x, y];
+                            float heightB = heightsScaled[x + 1, y];
+                            float heightC = heightsScaled[x, y + 1];
+                            float heightD = heightsScaled[x + 1, y + 1];
+                            int lineIndexA = (int)(heightA / topographicalLineDistance);
+                            int lineIndexB = (int)(heightB / topographicalLineDistance);
+                            int lineIndexC = (int)(heightC / topographicalLineDistance);
+                            int lineIndexD = (int)(heightD / topographicalLineDistance);
+                            bool isSet = lineIndexA != lineIndexB || lineIndexB != lineIndexC || lineIndexC != lineIndexD;
+                            Rgb24 color = lineColor;
+                            if(!isSet) // if it's not a line
+                            {
+                                float v = heightsScaled[x, y];
+                                int closestIndex = -1;
+                                for(int i = 0; i < colorMap.Length; i++)
+                                {
+                                    if(colorMap[i].Item1 > v)
+                                    {
+                                        closestIndex = i - 1;
+                                        break;
+                                    }
+                                }
+                                if(closestIndex == -1)
+                                {
+                                    //await Console.Error.WriteLineAsync($"Error: Pixel {x + 1}, {h - y} could not receive a color?? (This should not happen).");
+                                    continue;
+                                }
+
+                                float interp = MathF.Max(0, MathF.Min(1, Map(v, colorMap[closestIndex].Item1, colorMap[closestIndex + 1].Item1, 0, 1)));
+                                color = LerpRgb24(colorMap[closestIndex].Item2, colorMap[closestIndex + 1].Item2, interp);
+                            }
+                            bmp[x, h - y - 1] = color;
+                        }
+                    await bmp.SaveAsPngAsync(outputFile);
+                }
+            }
             else // Save image
             {
                 using(var bmp = new Image<Rgb24>(w, h))
@@ -381,9 +524,13 @@ namespace BayernatlasHeightmapper
                             byte vInt = (byte)v;
                             bmp[x, h - y - 1] = new Rgb24(vInt, vInt, vInt);
                         }
+                    if(imageScale != 1f)
+                        bmp.Mutate(x => x.Resize((int)(w * imageScale), (int)(h * imageScale)));
                     await bmp.SaveAsPngAsync(outputFile);
                 }
             }
+            await Console.Out.WriteLineAsync("Done!");
+            await Console.Out.WriteLineAsync();
         }
     }
 }
