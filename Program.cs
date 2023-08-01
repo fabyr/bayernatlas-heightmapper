@@ -57,7 +57,6 @@ namespace BayernatlasHeightmapper
                 await Console.Out.WriteLineAsync(" -t <step>,\tInstead of saving the image as a heightmap, draw a simplified topographical map");
                 await Console.Out.WriteLineAsync(" --topo <step>\tThe lines will be separated by 'step' meters of height.");
                 await Console.Out.WriteLineAsync("\t\tExample: 22.5");
-                await Console.Out.WriteLineAsync("\t\tDefault: 10");
                 await Console.Out.WriteLineAsync();
                 await Console.Out.WriteLineAsync("outputFile:");
                 await Console.Out.WriteLineAsync("\tWrite the output to a file.");
@@ -75,7 +74,7 @@ namespace BayernatlasHeightmapper
 
             bool onlySaveRaw = false;
             bool topographical = false;
-            float topographicalLineDistance = 10.0f;
+            float topographicalLineDistance = float.NaN;
             float imageScale = 1f;
             bool requestComplex = true;
 
