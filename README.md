@@ -117,12 +117,12 @@ They are smoothly interpolated for any height between any two values.
 
 Examples:
 ```
-dotnet run 4307200 5538368 asch1.png --topo 10 --scale 5 --size 6000,6000
+dotnet run 4307200 5538368 topo1.png --topo 10 --scale 5 --size 6000,6000
 ```
 ![result of the above command](/assets/topo1.png)
 
 ```
-dotnet run 4613664 5409312 freyung1.png --topo 12.5 --scale 5 --size 15000,15000
+dotnet run 4613664 5409312 topo2.png --topo 12.5 --scale 5 --size 15000,15000
 ```
 ![result of the above command](/assets/topo2.png)
 (This image has been scaled down from its original resolution of 7500x7500)
