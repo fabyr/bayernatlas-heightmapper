@@ -83,6 +83,8 @@ namespace BayernatlasHeightmapper
 
             // GK4-Points in every direction
             int sizeX = 5000, sizeY = 5000;
+
+            // GK4-Units per pixel
             int step = 20;
 
             string? outputFile = null;
@@ -185,7 +187,7 @@ namespace BayernatlasHeightmapper
                                 return;
                         }
                 }
-                else
+                else // Positional arguments
                 {
                     switch(positionalArgumentPosition)
                     {
@@ -245,6 +247,9 @@ namespace BayernatlasHeightmapper
 
             float[,] heights = new float[w, h];
 
+            // Converting a floating point number to string should use '.' as the decimal point.
+            // If a different culture is set by the system, this might not be the case.
+            // So we set the culture explicitly.
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
 
@@ -295,31 +300,32 @@ namespace BayernatlasHeightmapper
                             {
                                 JObject o;
                                 JToken? hArray = null;
-                                try {
+
+                                // Ignore a broken response
+                                try 
+                                {
                                     o = (JObject)JToken.ReadFrom(reader);
                                     hArray = o["heights"];
                                 } catch {}
+                                
+                                var vals = hArray?.Values<JToken>();
+                                for(int k = 0; k < i - lastRequest; k++)
                                 {
-                                    var vals = hArray?.Values<JToken>();
-                                    //foreach(JToken? pt in hArray.Values<JToken>())
-                                    for(int k = 0; k < i - lastRequest; k++)
+                                    float v = 0;
+                                    if(vals != null && k < vals.Count())
                                     {
-                                        float v = 0;
-                                        if(vals != null && k < vals.Count())
-                                        {
-                                            v = vals.ElementAt(k)?.Value<JToken>("alts")?.Value<float>("COMB") ?? 0;
-                                        }
-                                        
-                                        heights[xarr, yarr] = v;
-                                        yarr += yarrdir;
-                                        if(yarr == h || yarr == -1)
-                                        {
-                                            yarr += -yarrdir;
-                                            yarrdir = -yarrdir;
-                                            xarr++;
-                                        }
+                                        v = vals.ElementAt(k)?.Value<JToken>("alts")?.Value<float>("COMB") ?? 0;
                                     }
-                                }
+                                    
+                                    heights[xarr, yarr] = v;
+                                    yarr += yarrdir;
+                                    if(yarr == h || yarr == -1)
+                                    {
+                                        yarr += -yarrdir;
+                                        yarrdir = -yarrdir;
+                                        xarr++;
+                                    }
+                                }  
                             }
                             lastRequest = i;
                             blockAt++;
@@ -367,13 +373,13 @@ namespace BayernatlasHeightmapper
                     json.Append("]}");
                     
                     StringContent content = new StringContent(json.ToString(), Encoding.UTF8, "application/json");
-                    HttpRequestMessage hrm = new HttpRequestMessage(HttpMethod.Post, url);
-                    hrm.Content = content;
-                    HttpResponseMessage response = await client.SendAsync(hrm);
+                    HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, url);
+                    request.Content = content;
+                    HttpResponseMessage response = await client.SendAsync(request);
                     string respContent = await response.Content.ReadAsStringAsync();
-                    using(JsonTextReader jtr = new JsonTextReader(new StringReader(respContent)))
+                    using(JsonTextReader reader = new JsonTextReader(new StringReader(respContent)))
                     {
-                        JObject o = (JObject)JToken.ReadFrom(jtr);
+                        JObject o = (JObject)JToken.ReadFrom(reader);
                         JToken? hArray = o["heights"];
                         if(hArray == null)
                             continue;
@@ -431,7 +437,7 @@ namespace BayernatlasHeightmapper
                 if(outputFile == null) // Write to stdout if no output file is set
                     await Console.Out.WriteLineAsync(raw.ToString());
                 else
-                    File.WriteAllText(outputFile, raw.ToString());
+                    await File.WriteAllTextAsync(outputFile, raw.ToString());
             }
             else if(topographical)
             {
