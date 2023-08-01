@@ -9,6 +9,7 @@ A small tool to download heightmap-images from [Geoportal Bayern's Bayernatlas](
   - [More examples](#more-examples)
 - [Image pixel values](#image-pixel-values)
 - [Raw mode](#raw-mode)
+- [Topographical Mode](#topographical-mode)
 
 ## Dependencies
 - [.NET 6 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
