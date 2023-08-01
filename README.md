@@ -16,20 +16,28 @@ A small tool to download heightmap-images from [Geoportal Bayern's Bayernatlas](
 ## Usage
 Just running the program with `dotnet run` displays a help:
 ```
-Usage: bayernatlas-heightmapper [-h] [-S] [-r] [-u <units>] [-s <size>] centerX centerY [outputFile]
+Usage: bayernatlas-heightmapper [-h] [-S] [-r] [-u <units>] [-s <size>] [-t <step>] centerX centerY [outputFile]
 
 Download heightmap images or heightmap values from Bayernatlas.
 
 Options:
- -h, --help     display this help
- -u, --units    units per pixel (meters). Default is 20
- -S, --simple   use a simplified downloading algorithm (not necessary in most cases)
+ -h, --help     Display this help
+ -u, --units    Units per pixel (meters). Default is 20
+ -S, --simple   Use a simplified downloading algorithm (not necessary in most cases)
 
- -s <size>,     specify size (two-value tuple) in GK4 units in each direction from the center.
+ -s <size>,     Specify size (two-value tuple) in GK4 units in each direction from the center.
  --size <size>  Example: 12000,12000
                 Default: 5000,5000
 
- -r, --raw      don't render an image; output raw numeric height values instead
+ -x <by>,       Scale the resulting image by that factor
+ --scale <by>   Example: 5
+                Default: 1
+
+ -r, --raw      Don't render an image; output raw numeric height values instead
+
+ -t <step>,     Instead of saving the image as a heightmap, draw a simplified topographical map
+ --topo <step>  The lines will be separated by 'step' meters of height.
+                Example: 22.5
 
 outputFile:
         Write the output to a file.
@@ -86,3 +94,34 @@ Important are the `Minimum Height` and `Maximum Height` values, as they directly
 ## Raw mode
 By using the argument `--raw`, instead of rendering an image, the raw height-values in `meters` will be saved.
 It is a simple collection of space-separated values, where each line contains the "pixels" of the image row-by-row.
+
+## Topographical mode
+By using the argument `--topo`, instead of outputting a grayscale heightmap, a simplified
+[topographic map](https://en.wikipedia.org/wiki/Topographic_map) will be rendered.
+Specify the height-spacing of lines after the `--topo` argument.
+The coloring is chosen according to this hardcoded table:
+| Height (m) | Color              |
+| ---------- | ------------------ |
+| < 0        | black              |
+| 0          | rgb(120, 170, 255) |
+| 200        | rgb(240, 255, 200) |
+| 350        | rgb(170, 255, 120) |
+| 450        | rgb(170, 200,  50) |
+| 600        | rgb(140, 160,  50) |
+| 1000       | rgb(255, 200, 120) |
+| 2000       | rgb(255, 240, 200) |
+| > 10000    | rgb(255, 255, 255) |
+
+They are smoothly interpolated for any height between any two values.
+
+Examples:
+```
+dotnet run 4307200 5538368 asch1.png --topo 10 --scale 5 --size 6000,6000
+```
+![result of the above command](/assets/topo1.png)
+
+```
+dotnet run 4613664 5409312 freyung1.png --topo 12.5 --scale 5 --size 15000,15000
+```
+![result of the above command](/assets/topo2.png)
+(This image has been scaled down from its original resolution of 7500x7500)
