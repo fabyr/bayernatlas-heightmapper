@@ -63,7 +63,7 @@ The lower the value, the higher the resolution, but the longer the image will ta
 The resolution is also limited by the server. `--units 20` is approximately the minimal value.
 
 The physical size the image is covering can be changed by using `--size`. To capture an area
-of `10000x8000` meters for example, you would have to use `--size 5000x4000`, as it specifies how far the region extends into each direction
+of `10000x8000` meters for example, you would have to use `--size 5000,4000`, as it specifies how far the region extends into each direction
 from the center. I.e. 5000m north, 5000m south and 4000m west, 4000m east. So the resulting area will always be double that of `size`.
 By default, size is set to `5000,5000`.
 
