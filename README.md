@@ -55,12 +55,13 @@ The website and its api use [GK4-Coordinates](https://en.wikipedia.org/wiki/Gaus
 One unit in this coordinate system is equivalent to 1 meter in real life.
 
 ### Example download
-1. Get the GK4 coordinates of the location you want to have at the center of the image. Simply right click on the website:
+1. Get the GK4 coordinates of the location you want to have at the center of the image. \
+   Simply right click on the website: \
 ![screenshot of the website](/assets/on-website.png)
   - The fourth row contains the required coordinates. (marked with the text `GK4`) \
     Of course, the dialog layout might change in the future if the website gets updated.
 
-1. Then, simply download a heightmap using the following command:
+1. Then, download a heightmap using the following command:
 ```sh
 dotnet run 4466640 5418104 heightmap.png
 ```
