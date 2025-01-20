@@ -3,16 +3,18 @@
 A small tool to download heightmap-images from [Geoportal Bayern's Bayernatlas](https://geoportal.bayern.de/bayernatlas/)
 
 ## Table of Contents
-- [Dependencies](#dependencies)
-- [Usage](#usage)
-  - [Example download](#example-download)
-  - [More examples](#more-examples)
-- [Image pixel values](#image-pixel-values)
-- [Raw mode](#raw-mode)
-- [Topographical Mode](#topographical-mode)
+- [bayernatlas-heightmapper](#bayernatlas-heightmapper)
+  - [Table of Contents](#table-of-contents)
+  - [Dependencies](#dependencies)
+  - [Usage](#usage)
+    - [Example download](#example-download)
+    - [More examples](#more-examples)
+  - [Image pixel values](#image-pixel-values)
+  - [Raw mode](#raw-mode)
+  - [Topographical mode](#topographical-mode)
 
 ## Dependencies
-- [.NET 6 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
+- [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 
 ## Usage
 Just running the program with `dotnet run` displays a help:
