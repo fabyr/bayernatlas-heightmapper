@@ -1,10 +1,10 @@
 ﻿using System.Text;
 using System.Globalization;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
+using System.Net.Mime;
 
 namespace BayernatlasHeightmapper;
 
@@ -29,18 +29,33 @@ public class Program
         return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
     }
 
+    private static (int, int) UnflattenIndex(int index, int height)
+    {
+        int x = index / height;
+        int y = index % height;
+        if (x % 2 != 0)
+        {
+            y = height - y - 1;
+        }
+        return (x, y);
+    }
+
     public static async Task Main(string[] args)
     {
         async Task PrintHelp()
         {
             const string programName = "bayernatlas-heightmapper";
-            await Console.Out.WriteLineAsync($"Usage: {programName} [-h] [-S] [-r] [-u <units>] [-s <size>] [-t <step>] centerX centerY [outputFile]");
+            await Console.Out.WriteLineAsync($"Usage: {programName} [-h] [-v] [-S] [-r] [-u <units>] [-s <size>] [-t <step>] centerX centerY [outputFile]");
             await Console.Out.WriteLineAsync();
             await Console.Out.WriteLineAsync("Download heightmap images or heightmap values from Bayernatlas.");
+            await Console.Out.WriteLineAsync();
+            await Console.Out.WriteLineAsync("centerX: Longitude in GK4-Coordinates.");
+            await Console.Out.WriteLineAsync("centerY: Latitude in GK4-Coordinates.");
             await Console.Out.WriteLineAsync();
             await Console.Out.WriteLineAsync("Options:");
             await Console.Out.WriteLineAsync(" -h, --help\tDisplay this help");
             await Console.Out.WriteLineAsync(" -u, --units\tUnits per pixel (meters). Default is 20");
+            await Console.Out.WriteLineAsync(" -v, --verbose\tPrint occurring exceptions");
             await Console.Out.WriteLineAsync(" -S, --simple\tUse a simplified downloading algorithm (not necessary in most cases)");
             await Console.Out.WriteLineAsync();
             await Console.Out.WriteLineAsync(" -s <size>,\tSpecify size (two-value tuple) in GK4 units in each direction from the center.");
@@ -68,11 +83,12 @@ public class Program
             return;
         }
 
-        const int requestComplexPointCount = 5000;
+        const int requestComplexBlockSize = 5000;
         const string url = "https://geoportal.bayern.de/ba-backend/dgm/profile/";
 
         bool onlySaveRaw = false;
         bool topographical = false;
+        bool verbose = false;
         float topographicalLineDistance = float.NaN;
         float imageScale = 1f;
         bool requestComplex = true;
@@ -108,6 +124,9 @@ public class Program
                         case "help" or "h":
                             await PrintHelp();
                             return;
+                        case "verbose" or "v":
+                            verbose = true;
+                            break;
                         case "simple" or "S":
                             requestComplex = false;
                             break;
@@ -141,7 +160,8 @@ public class Program
                             {
                                 string sizeArg = args[++i];
                                 string[] parts = sizeArg.Split(',');
-                                if (parts.Length != 2 || !int.TryParse(parts[0], out sizeX)
+                                if (parts.Length != 2
+                                    || !int.TryParse(parts[0], out sizeX)
                                     || !int.TryParse(parts[1], out sizeY))
                                 {
                                     await Console.Out.WriteLineAsync($"Invalid size value '{sizeArg}'. Valid Example: 12000,12000");
@@ -234,6 +254,7 @@ public class Program
             return;
         }
 
+        // Display some information about the upcoming download
         await Console.Out.WriteLineAsync($"Using {(requestComplex ? "complex" : "simple")} request algorithm");
         await Console.Out.WriteLineAsync($"Output will be saved to {outputFile ?? "stdout"}");
         await Console.Out.WriteLineAsync($"Output is {(onlySaveRaw ? "a list of raw height values" : topographical ? $"a topographical map with steps of {topographicalLineDistance}" : "an image")}");
@@ -242,9 +263,8 @@ public class Program
         await Console.Out.WriteLineAsync($"Units per height-point: {step}");
         await Console.Out.WriteLineAsync();
 
-        int w = sizeX * 2 / step, h = sizeY * 2 / step;
-
-        float[,] heights = new float[w, h];
+        int width = sizeX * 2 / step, height = sizeY * 2 / step;
+        float[,] heightmap = new float[width, height];
 
         // Converting a floating point number to string should use '.' as the decimal point.
         // If a different culture is set by the system, this might not be the case.
@@ -264,142 +284,150 @@ public class Program
 
         using (HttpClient client = new())
         {
+            client.Timeout = TimeSpan.FromSeconds(60);
+
             if (requestComplex)
             {
                 /* "Complex" algorithm does not fetch the image line by line.
-                 * Rather, it builds a path consisting of a maximum of requestComplexPointCount
-                 * points in a "snake"-like pattern. Until the entire image is fetched.
-                 * Fewer requests will be made with smaller images.
+                 * Rather, it builds a path consisting of a maximum of requestComplexBlockSize
+                 * points in a "snake"-like pattern, and repeats this until the entire image is fetched.
+                 * Fewer requests will be sent with smaller images.
                  * For bigger images it is mandatory as a single line could hit a server-side limit
-                 * with the other, more simple line-by-line algorithm.
+                 * with the other, simpler line-by-line algorithm.
                  */
-                StringBuilder json = new();
+                List<(int, int)> points = [];
 
-                int x = 0, y = 0, yDirection = 1, xarr = 0, yarr = 0, yarrDirection = 1;
-                int blockCount = (int)Math.Ceiling(w * h / (float)requestComplexPointCount);
-                bool notPrepend = true;
-                int lastRequest = 0, blockAt = 0;
-                for (int i = 0; i <= w * h; i++)
+                int total = width * height;
+                int blockCount = (int)MathF.Ceiling(total / (float)requestComplexBlockSize);
+                for (int i = 0; i < total; i++)
                 {
-                    // Once the threshold is reached (requestComplexPointCount) or we reached the end
-                    // we send a request to the server
-                    if (i % requestComplexPointCount == 0 || i == w * h)
-                    {
-                        if (i != 0)
-                        {
-                            await Console.Out.WriteLineAsync($"Processing Block {blockAt + 1} of {blockCount}");
-                            json.Append("]}");
+                    var (pointX, pointY) = UnflattenIndex(i, height);
+                    points.Add((XIndexToGK4(pointX), YIndexToGK4(pointY)));
 
-                            StringContent content = new(json.ToString(), Encoding.UTF8, "application/json");
-                            HttpRequestMessage request = new(HttpMethod.Post, url)
-                            {
-                                Content = content
-                            };
+                    // Once the threshold is reached (requestComplexBlockSize) or we reached the end,
+                    // we send a request to the server
+                    if (points.Count == requestComplexBlockSize || i == total - 1)
+                    {
+                        int blockNumber = (int)MathF.Round(i / (float)requestComplexBlockSize);
+                        await Console.Out.WriteLineAsync($"Processing block {blockNumber} of {blockCount}");
+
+                        string json = JsonConvert.SerializeObject(new LineStringRequest()
+                        {
+                            CoordinateTuples = [.. points]
+                        });
+
+                        StringContent content = new(json, Encoding.UTF8, MediaTypeNames.Application.Json);
+                        HttpRequestMessage request = new(HttpMethod.Post, url)
+                        {
+                            Content = content
+                        };
+
+                        try
+                        {
+                            // Send the points to the server
                             HttpResponseMessage response = await client.SendAsync(request);
                             string responseContent = await response.Content.ReadAsStringAsync();
-                            using (JsonTextReader reader = new(new StringReader(responseContent)))
+
+                            // Process received altitude values
+                            LineStringResponse? responseObject = JsonConvert.DeserializeObject<LineStringResponse>(responseContent);
+                            if (responseObject != null)
                             {
-                                JObject responseObject;
-                                JToken? heightArray = null;
+                                int count = responseObject.Heights.Length;
 
-                                // Ignore a broken response
-                                try
+                                for (int k = 0; k < count; k++)
                                 {
-                                    responseObject = (JObject)JToken.ReadFrom(reader);
-                                    heightArray = responseObject["heights"];
-                                }
-                                catch { }
+                                    float value = responseObject.Heights[k].Altitude?.Value ?? 0;
 
-                                var values = heightArray?.Values<JToken>();
-                                for (int k = 0; k < i - lastRequest; k++)
-                                {
-                                    float v = 0;
-                                    if (values != null && k < values.Count())
-                                    {
-                                        v = values.ElementAt(k)?.Value<JToken>("alts")?.Value<float>("COMB") ?? 0;
-                                    }
+                                    var (x, y) = UnflattenIndex((blockNumber - 1) * requestComplexBlockSize + k, height);
 
-                                    heights[xarr, yarr] = v;
-                                    yarr += yarrDirection;
-                                    if (yarr == h || yarr == -1)
-                                    {
-                                        yarr += -yarrDirection;
-                                        yarrDirection = -yarrDirection;
-                                        xarr++;
-                                    }
+                                    if (x >= width)
+                                        break;
+
+                                    heightmap[x, y] = value;
                                 }
                             }
-                            lastRequest = i;
-                            blockAt++;
+                        }
+                        catch (JsonException je)
+                        {
+                            await Console.Error.WriteLineAsync($"Warning: Server returned malformed json for block {blockNumber}");
+                            if (verbose)
+                            {
+                                await Console.Error.WriteLineAsync(je.ToString());
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            await Console.Error.WriteLineAsync($"Error: Request to server failed for block {blockNumber}");
+                            if (verbose)
+                            {
+                                await Console.Error.WriteLineAsync(e.ToString());
+                            }
                         }
 
-                        json.Clear();
-                        json.Append("{\"type\":\"LineString\",\"coordinates\":[");
-                        notPrepend = true;
-                    }
-
-                    // Continually append points to the json request
-                    if (i < w * h)
-                    {
-                        int gkX = XIndexToGK4(x), gkY = YIndexToGK4(y);
-                        if (notPrepend)
-                        {
-                            notPrepend = false;
-                        }
-                        else
-                            json.Append(',');
-                        json.Append($"[{gkX}, {gkY}]");
-                        y += yDirection;
-                        if (y == h || y == -1)
-                        {
-                            y += -yDirection;
-                            yDirection = -yDirection;
-                            x++;
-                        }
+                        points.Clear();
                     }
                 }
             }
             else
             {
-                for (int x = 0; x < heights.GetLength(0); x++)
+                List<(int, int)> points = [];
+
+                for (int x = 0; x < width; x++)
                 {
-                    await Console.Out.WriteLineAsync($"Processing Block {x + 1} of {heights.GetLength(0)}");
+                    await Console.Out.WriteLineAsync($"Processing line {x + 1} of {width}");
 
-                    StringBuilder json = new();
-                    json.Append("{\"type\":\"LineString\",\"coordinates\":[");
-                    for (int y = 0; y < heights.GetLength(1); y++)
+                    for (int y = 0; y < height; y++)
                     {
-                        int gkX = XIndexToGK4(x), gkY = YIndexToGK4(y);
-                        if (y != 0)
-                            json.Append(',');
-                        json.Append($"[{gkX}, {gkY}]");
+                        points.Add((XIndexToGK4(x), YIndexToGK4(y)));
                     }
-                    json.Append("]}");
 
-                    StringContent content = new(json.ToString(), Encoding.UTF8, "application/json");
+                    string json = JsonConvert.SerializeObject(new LineStringRequest()
+                    {
+                        CoordinateTuples = [.. points]
+                    });
+
+                    points.Clear();
+
+                    StringContent content = new(json, Encoding.UTF8, MediaTypeNames.Application.Json);
                     HttpRequestMessage request = new(HttpMethod.Post, url)
                     {
                         Content = content
                     };
 
-                    // Send the constructed json request
-                    HttpResponseMessage response = await client.SendAsync(request);
-                    string responseContent = await response.Content.ReadAsStringAsync();
-                    using JsonTextReader reader = new(new StringReader(responseContent));
-
-                    JObject responseObject = (JObject)JToken.ReadFrom(reader);
-                    JToken? heightArray = responseObject["heights"];
-                    if (heightArray == null)
-                        continue;
-                    int c = 0;
-                    int count = heightArray.Count();
-
-                    foreach (JToken? pt in heightArray.Values<JToken>())
+                    try
                     {
-                        float value = pt?.Value<JToken>("alts")?.Value<float>("COMB") ?? 0;
-                        heights[x, (int)(c / (float)count * heights.GetLength(1))] = value;
+                        // Send the points to the server
+                        HttpResponseMessage response = await client.SendAsync(request);
+                        string responseContent = await response.Content.ReadAsStringAsync();
 
-                        c++;
+                        // process received altitude values
+                        LineStringResponse? responseObject = JsonConvert.DeserializeObject<LineStringResponse>(responseContent);
+                        if (responseObject != null)
+                        {
+                            int count = responseObject.Heights.Length;
+
+                            for (int i = 0; i < count; i++)
+                            {
+                                float value = responseObject.Heights[i].Altitude?.Value ?? 0;
+                                heightmap[x, (int)(i / (float)count * height)] = value;
+                            }
+                        }
+                    }
+                    catch (JsonException je)
+                    {
+                        await Console.Error.WriteLineAsync($"Warning: Server returned malformed json for line {x + 1}");
+                        if (verbose)
+                        {
+                            await Console.Error.WriteLineAsync(je.ToString());
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        await Console.Error.WriteLineAsync($"Error: Request to server failed for line {x + 1}");
+                        if (verbose)
+                        {
+                            await Console.Error.WriteLineAsync(e.ToString());
+                        }
                     }
                 }
             }
@@ -407,11 +435,10 @@ public class Program
 
         // Find min and max height values.
         // Note: when an image has parts outside of bavaria,
-        // the server will return a height of zero, which will mess up the result.
-        // Since in reality there is no point in bavaria at sea level, we can just
-        // filter that out
-        float min = heights.Cast<float>().Where(x => x > 1).Min();
-        float max = heights.Cast<float>().Max();
+        // the server will return a height of zero or no height data, which will mess up the result.
+        // Since in reality there is no point in bavaria at sea level, we can just filter that out.
+        float min = heightmap.Cast<float>().Where(x => x > 1).Min();
+        float max = heightmap.Cast<float>().Max();
 
         // Output some useful information
         await Console.Out.WriteLineAsync("Finished!");
@@ -424,20 +451,20 @@ public class Program
         await Console.Out.WriteLineAsync($"Center-X: {centerX}");
         await Console.Out.WriteLineAsync($"Center-Y: {centerY}");
         await Console.Out.WriteLineAsync($"Units per pixel: {step / imageScale}");
-        await Console.Out.WriteLineAsync($"Final image size: {(int)(w * imageScale)}x{(int)(h * imageScale)} pixels");
+        await Console.Out.WriteLineAsync($"Final image size: {(int)(width * imageScale)}x{(int)(height * imageScale)} pixels");
         await Console.Out.WriteLineAsync();
         await Console.Out.WriteLineAsync($"Saving...");
 
         if (onlySaveRaw)
         {
             StringBuilder raw = new();
-            for (int y = heights.GetLength(1) - 1; y >= 0; y--)
+            for (int y = height - 1; y >= 0; y--)
             {
-                for (int x = 0; x < heights.GetLength(0); x++)
+                for (int x = 0; x < width; x++)
                 {
                     if (x != 0)
                         raw.Append(' ');
-                    raw.Append(heights[x, y]);
+                    raw.Append(heightmap[x, y]);
                 }
                 raw.AppendLine();
             }
@@ -448,28 +475,29 @@ public class Program
         }
         else if (topographical)
         {
-            float[,] heightsScaled = new float[(int)(heights.GetLength(0) * imageScale), (int)(heights.GetLength(1) * imageScale)];
-            for (int x = 0; x < heightsScaled.GetLength(0); x++)
-                for (int y = 0; y < heightsScaled.GetLength(1); y++)
+            float[,] heightsScaled = new float[(int)(width * imageScale), (int)(height * imageScale)];
+            int originalWidth = width,
+                originalHeight = height;
+            width = heightsScaled.GetLength(0);
+            height = heightsScaled.GetLength(1);
+            for (int x = 0; x < width; x++)
+                for (int y = 0; y < height; y++)
                 {
                     float fX = x / imageScale;
                     float fY = y / imageScale;
-                    int iX = (int)MathF.Min((int)fX, heights.GetLength(0) - 2);
-                    int iY = (int)MathF.Min((int)fY, heights.GetLength(1) - 2);
+                    int iX = (int)MathF.Min((int)fX, originalWidth - 2);
+                    int iY = (int)MathF.Min((int)fY, originalHeight - 2);
                     float fracX = fX - iX;
                     float fracY = fY - iY;
                     // bilinear interpolation
                     float interpolatedValue = (1 - fracX) *
-                                            ((1 - fracY) * heights[iX, iY] +
-                                            fracY * heights[iX, iY + 1]) +
+                                            ((1 - fracY) * heightmap[iX, iY] +
+                                            fracY * heightmap[iX, iY + 1]) +
                                         fracX *
-                                            ((1 - fracY) * heights[iX + 1, iY] +
-                                            fracY * heights[iX + 1, iY + 1]);
+                                            ((1 - fracY) * heightmap[iX + 1, iY] +
+                                            fracY * heightmap[iX + 1, iY + 1]);
                     heightsScaled[x, y] = interpolatedValue;
                 }
-
-            w = heightsScaled.GetLength(0);
-            h = heightsScaled.GetLength(1);
 
             // mapping of height to color
             (float, Rgb24)[] colorMap = [
@@ -485,9 +513,9 @@ public class Program
             ];
 
             Rgb24 lineColor = new(0, 0, 0);
-            using var bmp = new Image<Rgb24>(w, h);
-            for (int x = 0; x < heightsScaled.GetLength(0) - 1; x++)
-                for (int y = 0; y < heightsScaled.GetLength(1) - 1; y++)
+            using var bmp = new Image<Rgb24>(width, height);
+            for (int x = 0; x < width - 1; x++)
+                for (int y = 0; y < height - 1; y++)
                 {
                     float heightA = heightsScaled[x, y];
                     float heightB = heightsScaled[x + 1, y];
@@ -512,7 +540,7 @@ public class Program
                             }
                         }
 
-                        // For some reason we could not determine a color.
+                        // if for some reason we could not determine a color, we just skip it
                         if (closestIndex == -1)
                         {
                             continue;
@@ -521,27 +549,26 @@ public class Program
                         float interpolatedValue = MathF.Max(0, MathF.Min(1, Map(v, colorMap[closestIndex].Item1, colorMap[closestIndex + 1].Item1, 0, 1)));
                         color = LerpRgb24(colorMap[closestIndex].Item2, colorMap[closestIndex + 1].Item2, interpolatedValue);
                     }
-                    bmp[x, h - y - 1] = color;
+                    bmp[x, height - y - 1] = color;
                 }
             await bmp.SaveAsPngAsync(outputFile);
         }
-        else // Save image
+        else // Save normal heightmap image
         {
-            using var bmp = new Image<Rgb24>(w, h);
-            for (int x = 0; x < heights.GetLength(0); x++)
-                for (int y = 0; y < heights.GetLength(1); y++)
+            using var bmp = new Image<Rgb24>(width, height);
+            for (int x = 0; x < width; x++)
+                for (int y = 0; y < height; y++)
                 {
-                    float value = Map(heights[x, y], min, max, 0, 255);
+                    float value = Map(heightmap[x, y], min, max, 0, 255);
                     byte byteValue = (byte)value;
-                    bmp[x, h - y - 1] = new Rgb24(byteValue, byteValue, byteValue);
+                    bmp[x, height - y - 1] = new Rgb24(byteValue, byteValue, byteValue);
                 }
 
             if (imageScale != 1f)
-                bmp.Mutate(x => x.Resize((int)(w * imageScale), (int)(h * imageScale)));
+                bmp.Mutate(x => x.Resize((int)(width * imageScale), (int)(height * imageScale)));
             await bmp.SaveAsPngAsync(outputFile);
         }
 
         await Console.Out.WriteLineAsync("Done!");
-        await Console.Out.WriteLineAsync();
     }
 }
