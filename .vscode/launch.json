@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/bin/Debug/net6.0/bayernatlas-heightmapper.dll",
+            "program": "${workspaceFolder}/bin/Debug/net8.0/bayernatlas-heightmapper.dll",
             "args": [
                 "4481536", "5422592", "heightmap-debug.png", "--units", "50"
             ],
