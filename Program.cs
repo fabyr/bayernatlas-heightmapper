@@ -45,36 +45,36 @@ public class Program
         async Task PrintHelp()
         {
             const string programName = "bayernatlas-heightmapper";
-            await Console.Out.WriteLineAsync($"Usage: {programName} [-h] [-v] [-S] [-r] [-u <units>] [-s <size>] [-t <step>] centerX centerY [outputFile]");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync("Download heightmap images or heightmap values from Bayernatlas.");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync("centerX: Longitude in GK4-Coordinates.");
-            await Console.Out.WriteLineAsync("centerY: Latitude in GK4-Coordinates.");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync("Options:");
-            await Console.Out.WriteLineAsync(" -h, --help\tDisplay this help");
-            await Console.Out.WriteLineAsync(" -u, --units\tUnits per pixel (meters). Default is 20");
-            await Console.Out.WriteLineAsync(" -v, --verbose\tPrint occurring exceptions");
-            await Console.Out.WriteLineAsync(" -S, --simple\tUse a simplified downloading algorithm (not necessary in most cases)");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync(" -s <size>,\tSpecify size (two-value tuple) in GK4 units in each direction from the center.");
-            await Console.Out.WriteLineAsync(" --size <size>\tExample: 12000,12000");
-            await Console.Out.WriteLineAsync("\t\tDefault: 5000,5000");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync(" -x <by>,\tScale the resulting image by that factor");
-            await Console.Out.WriteLineAsync(" --scale <by>\tExample: 5");
-            await Console.Out.WriteLineAsync("\t\tDefault: 1");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync(" -r, --raw\tDon't render an image; output raw numeric height values instead");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync(" -t <step>,\tInstead of saving the image as a heightmap, draw a simplified topographical map");
-            await Console.Out.WriteLineAsync(" --topo <step>\tThe lines will be separated by 'step' meters of height.");
-            await Console.Out.WriteLineAsync("\t\tExample: 22.5");
-            await Console.Out.WriteLineAsync();
-            await Console.Out.WriteLineAsync("outputFile:");
-            await Console.Out.WriteLineAsync("\tWrite the output to a file.");
-            await Console.Out.WriteLineAsync("\tWhen not using '-r' or '--raw', this must be set.");
+            await Console.Error.WriteLineAsync($"Usage: {programName} [-h] [-v] [-S] [-r] [-u <units>] [-s <size>] [-t <step>] centerX centerY [outputFile]");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync("Download heightmap images or heightmap values from Bayernatlas.");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync("centerX: Longitude in GK4-Coordinates.");
+            await Console.Error.WriteLineAsync("centerY: Latitude in GK4-Coordinates.");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync("Options:");
+            await Console.Error.WriteLineAsync(" -h, --help\tDisplay this help");
+            await Console.Error.WriteLineAsync(" -u, --units\tUnits per pixel (meters). Default is 20");
+            await Console.Error.WriteLineAsync(" -v, --verbose\tPrint occurring exceptions");
+            await Console.Error.WriteLineAsync(" -S, --simple\tUse a simplified downloading algorithm (not necessary in most cases)");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync(" -s <size>,\tSpecify size (two-value tuple) in GK4 units in each direction from the center.");
+            await Console.Error.WriteLineAsync(" --size <size>\tExample: 12000,12000");
+            await Console.Error.WriteLineAsync("\t\tDefault: 5000,5000");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync(" -x <by>,\tScale the resulting image by that factor");
+            await Console.Error.WriteLineAsync(" --scale <by>\tExample: 5");
+            await Console.Error.WriteLineAsync("\t\tDefault: 1");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync(" -r, --raw\tDon't render an image; output raw numeric height values instead");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync(" -t <step>,\tInstead of saving the image as a heightmap, draw a simplified topographical map");
+            await Console.Error.WriteLineAsync(" --topo <step>\tThe lines will be separated by 'step' meters of height.");
+            await Console.Error.WriteLineAsync("\t\tExample: 22.5");
+            await Console.Error.WriteLineAsync();
+            await Console.Error.WriteLineAsync("outputFile:");
+            await Console.Error.WriteLineAsync("\tWrite the output to a file.");
+            await Console.Error.WriteLineAsync("\tWhen not using '-r' or '--raw', this must be set.");
         }
 
         if (args.Length == 0)
@@ -136,7 +136,7 @@ public class Program
                         case "topo" or "t":
                             if (i == args.Length - 1)
                             {
-                                await Console.Out.WriteLineAsync("'topo' requires a value afterwards. Example: --topo 15");
+                                await Console.Error.WriteLineAsync("'topo' requires a value afterwards. Example: --topo 15");
                                 return;
                             }
                             else
@@ -144,7 +144,7 @@ public class Program
                                 string topoArg = args[++i];
                                 if (!float.TryParse(topoArg, out topographicalLineDistance))
                                 {
-                                    await Console.Out.WriteLineAsync($"Invalid value '{topoArg}'. Valid Example: 15");
+                                    await Console.Error.WriteLineAsync($"Invalid value '{topoArg}'. Valid Example: 15");
                                     return;
                                 }
                                 topographical = true;
@@ -153,7 +153,7 @@ public class Program
                         case "size" or "s":
                             if (i == args.Length - 1)
                             {
-                                await Console.Out.WriteLineAsync("'size' requires a size-value afterwards. Example: --size 12000,12000");
+                                await Console.Error.WriteLineAsync("'size' requires a size-value afterwards. Example: --size 12000,12000");
                                 return;
                             }
                             else
@@ -164,7 +164,7 @@ public class Program
                                     || !int.TryParse(parts[0], out sizeX)
                                     || !int.TryParse(parts[1], out sizeY))
                                 {
-                                    await Console.Out.WriteLineAsync($"Invalid size value '{sizeArg}'. Valid Example: 12000,12000");
+                                    await Console.Error.WriteLineAsync($"Invalid size value '{sizeArg}'. Valid Example: 12000,12000");
                                     return;
                                 }
                             }
@@ -172,7 +172,7 @@ public class Program
                         case "units" or "u":
                             if (i == args.Length - 1)
                             {
-                                await Console.Out.WriteLineAsync("'units' requires a value afterwards. Example: --units 50");
+                                await Console.Error.WriteLineAsync("'units' requires a value afterwards. Example: --units 50");
                                 return;
                             }
                             else
@@ -180,7 +180,7 @@ public class Program
                                 string unitsArg = args[++i];
                                 if (!int.TryParse(unitsArg, out step))
                                 {
-                                    await Console.Out.WriteLineAsync($"Invalid units value '{unitsArg}'. It must be a whole number.");
+                                    await Console.Error.WriteLineAsync($"Invalid units value '{unitsArg}'. It must be a whole number.");
                                     return;
                                 }
                             }
@@ -188,7 +188,7 @@ public class Program
                         case "scale" or "x":
                             if (i == args.Length - 1)
                             {
-                                await Console.Out.WriteLineAsync("'scale' requires a scaling-value afterwards. Example: --scale 5");
+                                await Console.Error.WriteLineAsync("'scale' requires a scaling-value afterwards. Example: --scale 5");
                                 return;
                             }
                             else
@@ -196,13 +196,13 @@ public class Program
                                 string scaleArg = args[++i];
                                 if (!float.TryParse(scaleArg, out imageScale))
                                 {
-                                    await Console.Out.WriteLineAsync($"Invalid scale value '{scaleArg}'. Valid Example: 5");
+                                    await Console.Error.WriteLineAsync($"Invalid scale value '{scaleArg}'. Valid Example: 5");
                                     return;
                                 }
                             }
                             break;
                         default:
-                            await Console.Out.WriteLineAsync($"Unknown argument '{innerArg}'.");
+                            await Console.Error.WriteLineAsync($"Unknown argument '{innerArg}'.");
                             return;
                     }
             }
@@ -213,14 +213,14 @@ public class Program
                     case 0:
                         if (!int.TryParse(arg, out centerX))
                         {
-                            await Console.Out.WriteLineAsync($"Invalid value '{arg}' for centerX. It must be a whole number.");
+                            await Console.Error.WriteLineAsync($"Invalid value '{arg}' for centerX. It must be a whole number.");
                             return;
                         }
                         break;
                     case 1:
                         if (!int.TryParse(arg, out centerY))
                         {
-                            await Console.Out.WriteLineAsync($"Invalid value '{arg}' for centerY. It must be a whole number.");
+                            await Console.Error.WriteLineAsync($"Invalid value '{arg}' for centerY. It must be a whole number.");
                             return;
                         }
                         break;
@@ -228,7 +228,7 @@ public class Program
                         outputFile = arg;
                         break;
                     default:
-                        await Console.Out.WriteLineAsync($"Too many positional arguments. (at '{arg}')");
+                        await Console.Error.WriteLineAsync($"Too many positional arguments. (at '{arg}')");
                         return;
                 }
                 positionalArgumentPosition++;
@@ -238,30 +238,30 @@ public class Program
         // Validate arguments
         if (positionalArgumentPosition < 2)
         {
-            await Console.Out.WriteLineAsync("Missing required 'centerX' and 'centerY' values.");
+            await Console.Error.WriteLineAsync("Missing required 'centerX' and 'centerY' values.");
             return;
         }
 
         if (onlySaveRaw && topographical)
         {
-            await Console.Out.WriteLineAsync("Raw mode is incompatible with topographical mode.");
+            await Console.Error.WriteLineAsync("Raw mode is incompatible with topographical mode.");
             return;
         }
 
         if (!onlySaveRaw && outputFile == null)
         {
-            await Console.Out.WriteLineAsync("You must specify an output file at the end when not using '-r' or '--raw'.");
+            await Console.Error.WriteLineAsync("You must specify an output file at the end when not using '-r' or '--raw'.");
             return;
         }
 
         // Display some information about the upcoming download
-        await Console.Out.WriteLineAsync($"Using {(requestComplex ? "complex" : "simple")} request algorithm");
-        await Console.Out.WriteLineAsync($"Output will be saved to {outputFile ?? "stdout"}");
-        await Console.Out.WriteLineAsync($"Output is {(onlySaveRaw ? "a list of raw height values" : topographical ? $"a topographical map with steps of {topographicalLineDistance}" : "an image")}");
-        await Console.Out.WriteLineAsync($"Size: {sizeX}, {sizeY}");
-        await Console.Out.WriteLineAsync($"Additional scaling afterwards: {imageScale}");
-        await Console.Out.WriteLineAsync($"Units per height-point: {step}");
-        await Console.Out.WriteLineAsync();
+        await Console.Error.WriteLineAsync($"Using {(requestComplex ? "complex" : "simple")} request algorithm");
+        await Console.Error.WriteLineAsync($"Output will be saved to {outputFile ?? "stdout"}");
+        await Console.Error.WriteLineAsync($"Output is {(onlySaveRaw ? "a list of raw height values" : topographical ? $"a topographical map with steps of {topographicalLineDistance}" : "an image")}");
+        await Console.Error.WriteLineAsync($"Size: {sizeX}, {sizeY}");
+        await Console.Error.WriteLineAsync($"Additional scaling afterwards: {imageScale}");
+        await Console.Error.WriteLineAsync($"Units per height-point: {step}");
+        await Console.Error.WriteLineAsync();
 
         int width = sizeX * 2 / step, height = sizeY * 2 / step;
         float[,] heightmap = new float[width, height];
@@ -309,7 +309,7 @@ public class Program
                     if (points.Count == requestComplexBlockSize || i == total - 1)
                     {
                         int blockNumber = (int)MathF.Round(i / (float)requestComplexBlockSize);
-                        await Console.Out.WriteLineAsync($"Processing block {blockNumber} of {blockCount}");
+                        await Console.Error.WriteLineAsync($"Processing block {blockNumber} of {blockCount}");
 
                         string json = JsonConvert.SerializeObject(new LineStringRequest()
                         {
@@ -374,7 +374,7 @@ public class Program
 
                 for (int x = 0; x < width; x++)
                 {
-                    await Console.Out.WriteLineAsync($"Processing line {x + 1} of {width}");
+                    await Console.Error.WriteLineAsync($"Processing line {x + 1} of {width}");
 
                     for (int y = 0; y < height; y++)
                     {
@@ -441,19 +441,19 @@ public class Program
         float max = heightmap.Cast<float>().Max();
 
         // Output some useful information
-        await Console.Out.WriteLineAsync("Finished!");
-        await Console.Out.WriteLineAsync();
-        await Console.Out.WriteLineAsync("Final Parameters:");
-        await Console.Out.WriteLineAsync($"Minimum Height: {min}");
-        await Console.Out.WriteLineAsync($"Maximum Height: {max}");
-        await Console.Out.WriteLineAsync($"Size-X: {sizeX}");
-        await Console.Out.WriteLineAsync($"Size-Y: {sizeY}");
-        await Console.Out.WriteLineAsync($"Center-X: {centerX}");
-        await Console.Out.WriteLineAsync($"Center-Y: {centerY}");
-        await Console.Out.WriteLineAsync($"Units per pixel: {step / imageScale}");
-        await Console.Out.WriteLineAsync($"Final image size: {(int)(width * imageScale)}x{(int)(height * imageScale)} pixels");
-        await Console.Out.WriteLineAsync();
-        await Console.Out.WriteLineAsync($"Saving...");
+        await Console.Error.WriteLineAsync("Finished!");
+        await Console.Error.WriteLineAsync();
+        await Console.Error.WriteLineAsync("Final Parameters:");
+        await Console.Error.WriteLineAsync($"Minimum Height: {min}");
+        await Console.Error.WriteLineAsync($"Maximum Height: {max}");
+        await Console.Error.WriteLineAsync($"Size-X: {sizeX}");
+        await Console.Error.WriteLineAsync($"Size-Y: {sizeY}");
+        await Console.Error.WriteLineAsync($"Center-X: {centerX}");
+        await Console.Error.WriteLineAsync($"Center-Y: {centerY}");
+        await Console.Error.WriteLineAsync($"Units per pixel: {step / imageScale}");
+        await Console.Error.WriteLineAsync($"Final image size: {(int)(width * imageScale)}x{(int)(height * imageScale)} pixels");
+        await Console.Error.WriteLineAsync();
+        await Console.Error.WriteLineAsync($"Saving...");
 
         if (onlySaveRaw)
         {
@@ -569,6 +569,6 @@ public class Program
             await bmp.SaveAsPngAsync(outputFile);
         }
 
-        await Console.Out.WriteLineAsync("Done!");
+        await Console.Error.WriteLineAsync("Done!");
     }
 }
